@@ -1,9 +1,9 @@
 #!/bin/sh
 
-#fail='fail'
-#info='info'
-fail='echo'
-info='echo'
+fail='fail'
+info='info'
+#fail='echo'
+#info='echo'
 
 main() {
   if [ -z "$WERCKER_KUBE_DEPLOY_DEPLOYMENT" ]; then
