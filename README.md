@@ -1,4 +1,4 @@
-# kube-deploy
+# step-kube-deploy
 
 This step uses the kubectl executable to replace a [kubernetes deployment](http://kubernetes.io/docs/user-guide/deployments/).
 Authentication options are passed along to the `kubectl` executable as is.
@@ -41,9 +41,3 @@ deploy:
 # License
 
 The MIT License (MIT)
-
-# Changelog
-
-## 1.0.0
-
-- Initial release
