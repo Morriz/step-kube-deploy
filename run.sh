@@ -18,31 +18,31 @@ main() {
 
   # Global args
   local global_args
-  local raw_global_args="$WERCKER_KUBECTL_RAW_GLOBAL_ARGS"
+  local raw_global_args="$WERCKER_KUBE_RAW_GLOBAL_ARGS"
 
   # token
-  if [ -n "$WERCKER_KUBECTL_TOKEN" ]; then
-    global_args="$global_args --token=\"$WERCKER_KUBECTL_TOKEN\""
+  if [ -n "$WERCKER_KUBE_TOKEN" ]; then
+    global_args="$global_args --token=\"$WERCKER_KUBE_TOKEN\""
   fi
 
   # username
-  if [ -n "$WERCKER_KUBECTL_USERNAME" ]; then
-    global_args="$global_args --username=\"$WERCKER_KUBECTL_USERNAME\""
+  if [ -n "$WERCKER_KUBE_USERNAME" ]; then
+    global_args="$global_args --username=\"$WERCKER_KUBE_USERNAME\""
   fi
 
   # password
-  if [ -n "$WERCKER_KUBECTL_PASSWORD" ]; then
-    global_args="$global_args --password=\"$WERCKER_KUBECTL_PASSWORD\""
+  if [ -n "$WERCKER_KUBE_PASSWORD" ]; then
+    global_args="$global_args --password=\"$WERCKER_KUBE_PASSWORD\""
   fi
 
   # server
-  if [ -n "$WERCKER_KUBECTL_SERVER" ]; then
-    global_args="$global_args --server=\"$WERCKER_KUBECTL_SERVER\""
+  if [ -n "$WERCKER_KUBE_SERVER" ]; then
+    global_args="$global_args --server=\"$WERCKER_KUBE_SERVER\""
   fi
 
   # insecure-skip-tls-verify
-  if [ -n "$WERCKER_KUBECTL_INSECURE_SKIP_TLS_VERIFY" ]; then
-    global_args="$global_args --insecure-skip-tls-verify=\"$WERCKER_KUBECTL_INSECURE_SKIP_TLS_VERIFY\""
+  if [ -n "$WERCKER_KUBE_INSECURE_SKIP_TLS_VERIFY" ]; then
+    global_args="$global_args --insecure-skip-tls-verify=\"$WERCKER_KUBE_INSECURE_SKIP_TLS_VERIFY\""
   fi
 
   local retries
@@ -92,8 +92,6 @@ main() {
   $info "Updating...DONE"
 
   local deployment_script_now
-  local gen_prev=0
-  local gen_now=1
   local timeout=$(($minReadySeconds + 10))
   local total_timeout
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "timeout: $timeout"
@@ -103,13 +101,12 @@ main() {
   fi
   $info "Waiting for a period of $total_timeout seconds for strategy '$strategy' with $replicas replicas to come up..."
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "total_timeout: $total_timeout"
-  while ([ "$gen_prev" != "$gen_now" ] && [ "$retries" !=  "0" ]); do
+  while ([ "$unavailable" !=  "0" ] && [ "$retries" !=  "0" ]); do
     $info "Checking status of deployment:"
     eval "sleep $total_timeout"
     deployment_script_now=$($kubectl get deployment/$deployment -o yaml)
-    gen_prev=$(printf "$deployment_script_now" | grep 'generation: ' | awk '{print $2}')
-    gen_now=$(printf "$deployment_script_now" | grep 'observedGeneration: ' | awk '{print $2}')
-    [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "prev[$gen_prev] = now[$gen_now]"
+    local unavailable=$($kubectl describe deployments | grep 'unavailable' | awk '{print $11}')
+    [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "unavailable: $unavailable"
     retries=$retries-1
   done
 
