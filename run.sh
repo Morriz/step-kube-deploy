@@ -109,6 +109,7 @@ main() {
   if [ "$unavailable" != "0" ]; then
     $info "some pods found to be unavailable, rolling back to version: $gen_prev"
     $cmd_rollback
+    exit 1
   fi
 }
 
