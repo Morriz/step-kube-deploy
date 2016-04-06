@@ -6,6 +6,8 @@ info='info'
 #info='echo'
 
 main() {
+  display_version
+
   if [ -z "$WERCKER_KUBE_DEPLOY_DEPLOYMENT" ]; then
     $fail "wercker-kube-deploy: deployment argument cannot be empty"
     exit
@@ -45,16 +47,14 @@ main() {
     global_args="$global_args --insecure-skip-tls-verify=\"$WERCKER_KUBE_DEPLOY_INSECURE_SKIP_TLS_VERIFY\""
   fi
 
-  local kubectl=$WERCKER_STEP_ROOT/kubectl $global_args $raw_global_args
+  local kubectl=`echo "$WERCKER_STEP_ROOT/kubectl $global_args $raw_global_args"`
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "kubectl command: $kubectl"
-
-  $info "Running kubectl version:"
-  $kubectl version -c
 
   local deployment=$WERCKER_KUBE_DEPLOY_DEPLOYMENT
   local tag=$WERCKER_KUBE_DEPLOY_TAG
-  local deployment_script=$($kubectl get deployment/$deployment -o yaml)
+  local deployment_script=$(eval "$kubectl get deployment/$deployment -o yaml")
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "deployment_script: " && printf "$deployment_script" && echo ""
+
   local current_tag=$(printf "$deployment_script" | grep 'image: ' | cut -d : -f 4)
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "current_tag: " && echo "$current_tag"
 
@@ -76,12 +76,12 @@ main() {
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "strategy: $strategy"
 
   [ -z "$minReadySeconds" ] && minReadySeconds=0
-  local cmd_update='printf "$deployment_script_update" | $kubectl replace -f -'
+  local cmd_update="printf \"\$deployment_script_update\" | $kubectl replace -f -"
   local cmd_rollback="$kubectl rollout undo deployment/$deployment"
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && printf "$cmd_update"
+  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "cmd_update: " && printf "$cmd_update" && echo ""
 
   $info "Updating..."
-  eval $cmd_update
+  eval "$cmd_update"
 
   local deployment_script_now
   local timeout=$(($minReadySeconds + 10))
@@ -99,21 +99,23 @@ main() {
     retries=$((retries - 1))
     $info "Checking status of deployment:"
     eval "sleep $total_timeout"
-    deployment_script_now=$($kubectl get deployment/$deployment -o yaml)
-    unavailable=$($kubectl describe deployments | grep 'unavailable' | awk '{print $11}')
+    deployment_script_now=$(eval "$kubectl get deployment/$deployment -o yaml")
+    unavailable=$(eval "$kubectl describe deployments" | grep 'unavailable' | awk '{print $11}')
     [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "unavailable: $unavailable"
     [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "retries: $retries"
   done
 
-  unavailable=$($kubectl describe deployments | grep 'unavailable' | awk '{print $11}')
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "unavailable: $unavailable"
   if [ "$unavailable" != "0" ]; then
     $info "Some pods found to be unavailable, rolling back to version: $gen_prev"
-    $cmd_rollback
+    eval $cmd_rollback
     $fail "Deployment update failed"
   fi
+}
 
-  $info "Updating...DONE"
+display_version() {
+  $info "Running kubectl version:"
+  $WERCKER_STEP_ROOT/kubectl version --client
+  echo ""
 }
 
 main;
