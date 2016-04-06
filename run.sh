@@ -18,31 +18,31 @@ main() {
 
   # Global args
   local global_args
-  local raw_global_args="$WERCKER_KUBE_RAW_GLOBAL_ARGS"
+  local raw_global_args="$WERCKER_KUBE_DEPLOY_RAW_GLOBAL_ARGS"
 
   # token
-  if [ -n "$WERCKER_KUBE_TOKEN" ]; then
-    global_args="$global_args --token=\"$WERCKER_KUBE_TOKEN\""
+  if [ -n "$WERCKER_KUBE_DEPLOY_TOKEN" ]; then
+    global_args="$global_args --token=\"$WERCKER_KUBE_DEPLOY_TOKEN\""
   fi
 
   # username
-  if [ -n "$WERCKER_KUBE_USERNAME" ]; then
-    global_args="$global_args --username=\"$WERCKER_KUBE_USERNAME\""
+  if [ -n "$WERCKER_KUBE_DEPLOY_USERNAME" ]; then
+    global_args="$global_args --username=\"$WERCKER_KUBE_DEPLOY_USERNAME\""
   fi
 
   # password
-  if [ -n "$WERCKER_KUBE_PASSWORD" ]; then
-    global_args="$global_args --password=\"$WERCKER_KUBE_PASSWORD\""
+  if [ -n "$WERCKER_KUBE_DEPLOY_PASSWORD" ]; then
+    global_args="$global_args --password=\"$WERCKER_KUBE_DEPLOY_PASSWORD\""
   fi
 
   # server
-  if [ -n "$WERCKER_KUBE_SERVER" ]; then
-    global_args="$global_args --server=\"$WERCKER_KUBE_SERVER\""
+  if [ -n "$WERCKER_KUBE_DEPLOY_SERVER" ]; then
+    global_args="$global_args --server=\"$WERCKER_KUBE_DEPLOY_SERVER\""
   fi
 
   # insecure-skip-tls-verify
-  if [ -n "$WERCKER_KUBE_INSECURE_SKIP_TLS_VERIFY" ]; then
-    global_args="$global_args --insecure-skip-tls-verify=\"$WERCKER_KUBE_INSECURE_SKIP_TLS_VERIFY\""
+  if [ -n "$WERCKER_KUBE_DEPLOY_INSECURE_SKIP_TLS_VERIFY" ]; then
+    global_args="$global_args --insecure-skip-tls-verify=\"$WERCKER_KUBE_DEPLOY_INSECURE_SKIP_TLS_VERIFY\""
   fi
 
   local retries
@@ -103,12 +103,13 @@ main() {
   local unavailable
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "total_timeout: $total_timeout"
   while ([ "$unavailable" !=  "0" ] && [ "$retries" !=  "0" ]); do
+    retries=$retries-1
     $info "Checking status of deployment:"
     eval "sleep $total_timeout"
     deployment_script_now=$($kubectl get deployment/$deployment -o yaml)
     unavailable=$($kubectl describe deployments | grep 'unavailable' | awk '{print $11}')
     [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "unavailable: $unavailable"
-    retries=$retries-1
+    [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "retries: $retries"
   done
 
   unavailable=$($kubectl describe deployments | grep 'unavailable' | awk '{print $11}')
