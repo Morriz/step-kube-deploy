@@ -45,14 +45,7 @@ main() {
     global_args="$global_args --insecure-skip-tls-verify=\"$WERCKER_KUBE_DEPLOY_INSECURE_SKIP_TLS_VERIFY\""
   fi
 
-  local retries
-  if [ -n "$WERCKER_KUBE_DEPLOY_RETRIES" ]; then
-    retries=$WERCKER_KUBE_DEPLOY_RETRIES
-  else
-    retries=5
-  fi
-
-  local kubectl="$WERCKER_STEP_ROOT/kubectl $global_args $raw_global_args"
+  local kubectl=$WERCKER_STEP_ROOT/kubectl $global_args $raw_global_args
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "kubectl command: $kubectl"
 
   $info "Running kubectl version:"
@@ -72,7 +65,7 @@ main() {
   local deployment_script_update=$(printf "$deployment_script" | sed "s,\(image: .*\):.*$,\1:$tag,")
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "deployment_script_update: " && printf "$deployment_script_update" && echo ""
 
-  local replicas=$(printf "$deployment_script" | grep 'replicas: ' | awk '{print $2}')
+  local replicas=$(printf "$deployment_script" | grep -e '^  replicas: ' | head -n 1 | awk '{print $2}')
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "replicas: $replicas"
 
   local minReadySeconds=$(printf "$deployment_script" | grep 'minReadySeconds: ' | awk '{print $2}')
@@ -89,7 +82,6 @@ main() {
 
   $info "Updating..."
   eval $cmd_update
-  $info "Updating...DONE"
 
   local deployment_script_now
   local timeout=$(($minReadySeconds + 10))
@@ -100,10 +92,11 @@ main() {
     total_timeout=`expr "$timeout * $replicas" | bc`
   fi
   $info "Waiting for a period of $total_timeout seconds for strategy '$strategy' with $replicas replicas to come up..."
+  local retries=3
   local unavailable
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "total_timeout: $total_timeout"
   while ([ "$unavailable" !=  "0" ] && [ "$retries" !=  "0" ]); do
-    retries=$retries-1
+    retries=$((retries - 1))
     $info "Checking status of deployment:"
     eval "sleep $total_timeout"
     deployment_script_now=$($kubectl get deployment/$deployment -o yaml)
@@ -119,6 +112,8 @@ main() {
     $cmd_rollback
     $fail "Deployment update failed"
   fi
+
+  $info "Updating...DONE"
 }
 
 main;
