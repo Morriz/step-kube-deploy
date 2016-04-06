@@ -1,4 +1,4 @@
-name: kubectl
+name: kube-deploy
 version: 0.1.0
 description: Step to create/update deployments with kubectl
 keywords:
