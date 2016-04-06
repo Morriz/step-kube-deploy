@@ -6,8 +6,6 @@ fail='echo'
 info='echo'
 
 main() {
-  display_version
-
   if [ -z "$WERCKER_KUBE_DEPLOY_DEPLOYMENT" ]; then
     $fail "wercker-kube-deploy: deployment argument cannot be empty"
     exit
@@ -55,6 +53,11 @@ main() {
   fi
 
   local kubectl="$WERCKER_STEP_ROOT/kubectl $global_args $raw_global_args"
+  [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && echo "kubectl command: $kubectl"
+  
+  $info "Running kubectl version:"
+  $kubectl version -c
+
   local deployment=$WERCKER_KUBE_DEPLOY_DEPLOYMENT
   local tag=$WERCKER_KUBE_DEPLOY_TAG
   local deployment_script=$($kubectl get deployment/$deployment -o yaml)
@@ -117,12 +120,6 @@ main() {
     $cmd_rollback
     $fail "Deployment update failed"
   fi
-}
-
-display_version() {
-  $info "Running kubectl version:"
-  $WERCKER_STEP_ROOT/kubectl version -c
-  echo ""
 }
 
 main;
