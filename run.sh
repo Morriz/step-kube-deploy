@@ -98,7 +98,7 @@ main() {
     eval "sleep $timeout"
     $info "Checking status of deployment..."
     deployment_script_now=$(eval "$kubectl get deployment/$deployment -o yaml")
-    unavailable=$(eval "$kubectl describe deployments" | grep 'unavailable' | awk '{print $11}')
+    unavailable=$(eval "$kubectl describe deployments $deployment" | grep 'unavailable' | head -n 1 | awk '{print $11}')
     [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "unavailable: $unavailable"
     [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "retries: $retries"
   done
