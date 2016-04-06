@@ -11,9 +11,6 @@ properties:
   tag:
     type: string
     required: true
-  strategy:
-    type: string
-    required: false
   username:
     type: string
     required: false

@@ -1,9 +1,9 @@
 #!/bin/sh
 
-fail='fail'
-info='info'
-#fail='echo'
-#info='echo'
+#fail='fail'
+#info='info'
+fail='echo'
+info='echo'
 
 main() {
   display_version
@@ -68,19 +68,25 @@ main() {
 
   local deployment_script_update=$(printf "$deployment_script" | sed "s,\(image: .*\):.*$,\1:$tag,")
   [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && echo "deployment_script_update: " && printf "$deployment_script_update" && echo ""
+
   local replicas=$(printf "$deployment_script" | grep 'replicas: ' | awk '{print $2}')
   [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && echo "replicas: $replicas"
+
   local minReadySeconds=$(printf "$deployment_script" | grep 'minReadySeconds: ' | awk '{print $2}')
   [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && echo "minReadySeconds: $minReadySeconds"
+
   local strategy=$(printf "$deployment_script" | grep 'strategy: ' | awk '{print $2}')
+  [ -z "$strategy" ] && strategy="RollingUpdate"
   [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && echo "strategy: $strategy"
+
   [ -z "$minReadySeconds" ] && minReadySeconds=0
   local cmd_update='printf "$deployment_script_update" | $kubectl replace -f -'
   local cmd_rollback="$kubectl rollout undo deployment/$deployment"
+  [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && printf "$cmd_update"
 
   $info "Updating..."
-  [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && printf "$cmd_update"
   eval $cmd_update
+  $info "Updating...DONE"
 
   local deployment_script_now
   local gen_prev=0
@@ -92,10 +98,11 @@ main() {
     echo "multiplying timeout with # of replicas"
     total_timeout=`expr "$timeout * $replicas" | bc`
   fi
+  $info "Waiting for a period of $total_timeout seconds for strategy '$strategy' with $replicas replicas to come up..."
   [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && echo "total_timeout: $total_timeout"
   while ([ "$gen_prev" != "$gen_now" ] && [ "$retries" !=  "0" ]); do
     $info "Checking status of deployment:"
-    sleep $total_timeout
+    eval "sleep $total_timeout"
     deployment_script_now=$($kubectl get deployment/$deployment -o yaml)
     gen_prev=$(printf "$deployment_script_now" | grep 'generation: ' | awk '{print $2}')
     gen_now=$(printf "$deployment_script_now" | grep 'observedGeneration: ' | awk '{print $2}')
