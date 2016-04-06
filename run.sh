@@ -1,9 +1,9 @@
 #!/bin/sh
 
-#fail='fail'
-#info='info'
-fail='echo'
-info='echo'
+fail='fail'
+info='info'
+#fail='echo'
+#info='echo'
 
 main() {
   display_version
@@ -63,8 +63,7 @@ main() {
   [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && echo "current_tag: " && echo "$current_tag"
 
   if [[ $current_tag = $tag ]]; then
-    echo "Already running: $tag"
-#    exit
+    $fail "Already running: $tag"
   fi
 
   local deployment_script_update=$(printf "$deployment_script" | sed "s,\(image: .*\):.*$,\1:$tag,")
@@ -79,7 +78,7 @@ main() {
   local cmd_update='printf "$deployment_script_update" | $kubectl replace -f -'
   local cmd_rollback="$kubectl rollout undo deployment/$deployment"
 
-  echo "Updating..."
+  $info "Updating..."
   [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && printf "$cmd_update"
   eval $cmd_update
 
@@ -107,9 +106,9 @@ main() {
   local unavailable=$($kubectl describe deployments | grep 'unavailable' | awk '{print $11}')
   [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && echo "unavailable: $unavailable"
   if [ "$unavailable" != "0" ]; then
-    $info "some pods found to be unavailable, rolling back to version: $gen_prev"
+    $info "Some pods found to be unavailable, rolling back to version: $gen_prev"
     $cmd_rollback
-    exit 1
+    $fail "Deployment update failed"
   fi
 }
 
