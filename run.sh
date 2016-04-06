@@ -100,17 +100,18 @@ main() {
     total_timeout=`expr "$timeout * $replicas" | bc`
   fi
   $info "Waiting for a period of $total_timeout seconds for strategy '$strategy' with $replicas replicas to come up..."
+  local unavailable
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "total_timeout: $total_timeout"
   while ([ "$unavailable" !=  "0" ] && [ "$retries" !=  "0" ]); do
     $info "Checking status of deployment:"
     eval "sleep $total_timeout"
     deployment_script_now=$($kubectl get deployment/$deployment -o yaml)
-    local unavailable=$($kubectl describe deployments | grep 'unavailable' | awk '{print $11}')
+    unavailable=$($kubectl describe deployments | grep 'unavailable' | awk '{print $11}')
     [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "unavailable: $unavailable"
     retries=$retries-1
   done
 
-  local unavailable=$($kubectl describe deployments | grep 'unavailable' | awk '{print $11}')
+  unavailable=$($kubectl describe deployments | grep 'unavailable' | awk '{print $11}')
   [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "unavailable: $unavailable"
   if [ "$unavailable" != "0" ]; then
     $info "Some pods found to be unavailable, rolling back to version: $gen_prev"
