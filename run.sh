@@ -85,20 +85,18 @@ main() {
 
   local deployment_script_now
   local timeout=$(($minReadySeconds + 10))
-  local total_timeout
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "timeout: $timeout"
   if [ "$strategy" != "Recreate" ]; then
     echo "multiplying timeout with # of replicas"
-    total_timeout=`expr "$timeout * $replicas" | bc`
+    timeout=$(($timeout * $replicas))
   fi
-  $info "Waiting for a period of $total_timeout seconds for strategy '$strategy' with $replicas replicas to come up..."
+
   local retries=3
   local unavailable
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "total_timeout: $total_timeout"
+  $info "Waiting for a period of $timeout seconds for strategy '$strategy' with $replicas replicas to come up..."
   while ([ "$unavailable" !=  "0" ] && [ "$retries" !=  "0" ]); do
     retries=$((retries - 1))
-    $info "Checking status of deployment:"
-    eval "sleep $total_timeout"
+    eval "sleep $timeout"
+    $info "Checking status of deployment..."
     deployment_script_now=$(eval "$kubectl get deployment/$deployment -o yaml")
     unavailable=$(eval "$kubectl describe deployments" | grep 'unavailable' | awk '{print $11}')
     [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "unavailable: $unavailable"
@@ -110,6 +108,8 @@ main() {
     eval $cmd_rollback
     $fail "Deployment update failed"
   fi
+
+  $info "Updating...SUCCESS!"
 }
 
 display_version() {
