@@ -54,7 +54,7 @@ main() {
 
   local kubectl="$WERCKER_STEP_ROOT/kubectl $global_args $raw_global_args"
   [ "$WERCKER_KUBECTL_DEBUG" = "true" ] && echo "kubectl command: $kubectl"
-  
+
   $info "Running kubectl version:"
   $kubectl version -c
 
