@@ -35,6 +35,7 @@ deploy:
           password: $KUBERNETES_PASSWORD
           insecure-skip-tls-verify: true
           deployment: create -f cities-controller.json
+          tag: $WERCKER_GIT_COMMIT
 ```
 
 # License
