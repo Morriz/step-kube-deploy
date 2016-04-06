@@ -1,0 +1,35 @@
+name: kubectl
+version: 1.2.0
+description: Step to create/update deployments with kubectl
+keywords:
+  - kubernetes
+  - kubectl
+properties:
+  deployment:
+    type: string
+    required: true
+  tag:
+    type: string
+    required: true
+  strategy:
+    type: string
+    required: false
+  username:
+    type: string
+    required: false
+  password:
+    type: string
+    required: false
+  server:
+    type: string
+    required: false
+  insecure-skip-tls-verify:
+    type: string
+    required: false
+  debug:
+    type: string
+    required: false
+    default: "false"
+  raw-global-args:
+    type: string
+    required: false

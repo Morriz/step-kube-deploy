@@ -1,0 +1,37 @@
+box: wercker/default
+build:
+    steps:
+        - shellcheck
+
+        - script:
+            name: config
+            code: |
+                export KUBERNETES_VERSION="1.2.0"
+                export KUBERNETES_MD5="c0ce9e6150e9d7a19455db82f3318b4c"
+                export KUBERNETES_SHA1="52dd998e1191f464f581a9b87017d70ce0b058d9"
+                echo "Installing version $KUBERNETES_VERSION of kubernetes"
+
+        - script:
+            name: fetch kubernetes archive
+            code: |
+                curl -L https://github.com/kubernetes/kubernetes/releases/download/v${KUBERNETES_VERSION}/kubernetes.tar.gz > /tmp/kubernetes.tar.gz
+
+        - script:
+            name: validate kubernetes archive
+            code: |
+                cat /tmp/kubernetes.tar.gz | sha1sum | grep -q "$KUBERNETES_SHA1"
+                cat /tmp/kubernetes.tar.gz | md5sum | grep -q "$KUBERNETES_MD5"
+
+        - script:
+            name: extract kubernetes archive
+            code: |
+                mkdir /tmp/kubernetes/
+                tar xzvf /tmp/kubernetes.tar.gz -C /tmp/kubernetes/
+
+        - script:
+            name: prepare output
+            code: |
+                cp "$WERCKER_ROOT/LICENSE" "$WERCKER_ROOT/README.md" "$WERCKER_ROOT/run.sh" "$WERCKER_ROOT/wercker.yml" "$WERCKER_ROOT/wercker-step.yml" "$WERCKER_OUTPUT_DIR"
+                cp /tmp/kubernetes/kubernetes/platforms/linux/amd64/kubectl "$WERCKER_OUTPUT_DIR/kubectl"
+                chmod ugo+rx "$WERCKER_OUTPUT_DIR/kubectl"
+
