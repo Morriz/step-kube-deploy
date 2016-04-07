@@ -1,21 +1,18 @@
 #!/bin/sh
 
-fail='fail'
-info='info'
-#fail='echo'
-#info='echo'
+debug() { if [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ]; then echo $*; return 0; else return 1; fi }
+#info() { echo $*; }
+#fail() { echo $*; exit 1; }
 
 main() {
   display_version
 
   if [ -z "$WERCKER_KUBE_DEPLOY_DEPLOYMENT" ]; then
-    $fail "wercker-kube-deploy: deployment argument cannot be empty"
-    exit
+    fail "wercker-kube-deploy: deployment argument cannot be empty"
   fi
 
   if [ -z "$WERCKER_KUBE_DEPLOY_TAG" ]; then
-    $fail "wercker-kube-deploy: tag argument cannot be empty"
-    exit
+    fail "wercker-kube-deploy: tag argument cannot be empty"
   fi
 
   # Global args
@@ -48,39 +45,42 @@ main() {
   fi
 
   local kubectl=`echo "$WERCKER_STEP_ROOT/kubectl $global_args $raw_global_args"`
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "kubectl command: $kubectl"
+  debug "kubectl command: $kubectl"
 
   local deployment=$WERCKER_KUBE_DEPLOY_DEPLOYMENT
   local tag=$WERCKER_KUBE_DEPLOY_TAG
   local deployment_script=$(eval "$kubectl get deployment/$deployment -o yaml")
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "deployment_script: " && printf "$deployment_script" && echo ""
+  if (($? > 0)); then
+    fail "Something went wrong, aborting..."
+  fi
+  debug "deployment_script: " && printf "$deployment_script" && echo ""
 
   local current_tag=$(printf "$deployment_script" | grep 'image: ' | cut -d : -f 4)
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "current_tag: " && echo "$current_tag"
+  debug "current_tag: " && echo "$current_tag"
 
   if [[ $current_tag = $tag ]]; then
-    $fail "Already running: $tag"
+    fail "Already running: $tag"
   fi
 
   local deployment_script_update=$(printf "$deployment_script" | sed "s,\(image: .*\):.*$,\1:$tag,")
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "deployment_script_update: " && printf "$deployment_script_update" && echo ""
+  debug "deployment_script_update: " && printf "$deployment_script_update" && echo ""
 
   local replicas=$(printf "$deployment_script" | grep -e '^  replicas: ' | head -n 1 | awk '{print $2}')
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "replicas: $replicas"
+  debug "replicas: $replicas"
 
   local minReadySeconds=$(printf "$deployment_script" | grep 'minReadySeconds: ' | awk '{print $2}')
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "minReadySeconds: $minReadySeconds"
+  debug "minReadySeconds: $minReadySeconds"
 
   local strategy=$(printf "$deployment_script" | grep 'strategy: ' | awk '{print $2}')
   [ -z "$strategy" ] && strategy="RollingUpdate"
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "strategy: $strategy"
+  debug "strategy: $strategy"
 
   [ -z "$minReadySeconds" ] && minReadySeconds=0
   local cmd_update="printf \"\$deployment_script_update\" | $kubectl replace -f -"
   local cmd_rollback="$kubectl rollout undo deployment/$deployment"
-  [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "cmd_update: " && printf "$cmd_update" && echo ""
+  debug "cmd_update: " && printf "$cmd_update" && echo ""
 
-  $info "Updating..."
+  info "Updating..."
   eval "$cmd_update"
 
   local deployment_script_now
@@ -92,28 +92,28 @@ main() {
 
   local retries=3
   local unavailable
-  $info "Waiting for a period of $timeout seconds for strategy '$strategy' with $replicas replicas to come up..."
+  info "Waiting for a period of $timeout seconds for strategy '$strategy' with $replicas replicas to come up..."
   while ([ "$unavailable" !=  "0" ] && [ "$retries" !=  "0" ]); do
     retries=$((retries - 1))
     eval "sleep $timeout"
-    $info "Checking status of deployment..."
+    info "Checking status of deployment..."
     deployment_script_now=$(eval "$kubectl get deployment/$deployment -o yaml")
     unavailable=$(eval "$kubectl describe deployments $deployment" | grep 'unavailable' | head -n 1 | awk '{print $11}')
-    [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "unavailable: $unavailable"
-    [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ] && echo "retries: $retries"
+    debug "unavailable: $unavailable"
+    debug "retries: $retries"
   done
 
   if [ "$unavailable" != "0" ]; then
-    $info "Some pods found to be unavailable, rolling back to version: $gen_prev"
+    info "Some pods found to be unavailable, rolling back..."
     eval $cmd_rollback
-    $fail "Deployment update failed"
+    fail "Deployment update failed"
   fi
 
-  $info "Updating...SUCCESS!"
+  info "Updating...SUCCESS!"
 }
 
 display_version() {
-  $info "Running kubectl version:"
+  info "Running kubectl version:"
   $WERCKER_STEP_ROOT/kubectl version --client
   echo ""
 }

@@ -1,9 +1,11 @@
 name: kube-deploy
-version: 0.1.9
-description: Step to create/update deployments with kubectl
+version: 0.1.10
+description: Step to replace image tags in kubernetes deployments (making it do a rolling update), monitor successful application, and do a rollback if necessary.
 keywords:
   - kubernetes
   - kubectl
+  - deployment
+  - rolling-update
 properties:
   deployment:
     type: string
