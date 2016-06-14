@@ -1,8 +1,30 @@
 #!/bin/sh
 
-debug() { if [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ]; then echo $*; return 0; else return 1; fi }
-#info() { echo $*; }
-#fail() { echo $*; exit 1; }
+debug() { if [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ]; then echo "$*"; return 0; else return 1; fi }
+#info() { echo "$*"; }
+#fail() { echo "$*"; exit 1; }
+
+parse_yaml() {
+    local prefix=$2
+    local s
+    local w
+    local fs
+    s='[[:space:]]*'
+    w='[a-zA-Z0-9_]*'
+    fs="$(echo @|tr @ '\034')"
+    sed -ne "s|^\($s\)\($w\)$s:$s\"\(.*\)\"$s\$|\1$fs\2$fs\3|p" \
+        -e "s|^\($s\)\($w\)$s[:-]$s\(.*\)$s\$|\1$fs\2$fs\3|p" "$1" |
+    awk -F"$fs" '{
+      indent = length($1)/2;
+      if (length($2) == 0) { conj[indent]="+";} else {conj[indent]="";}
+      vname[indent] = $2;
+      for (i in vname) {if (i > indent) {delete vname[i]}}
+      if (length($3) > 0) {
+              vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+              printf("%s%s%s%s=(\"%s\")\n", "'"$prefix"'",vn, $2, conj[indent-1],$3);
+      }
+    }' | sed 's/_=/+=/g'
+}
 
 main() {
   display_version
@@ -50,13 +72,19 @@ main() {
   local deployment=$WERCKER_KUBE_DEPLOY_DEPLOYMENT
   local tag=$WERCKER_KUBE_DEPLOY_TAG
   local deployment_script=$(eval "$kubectl get deployment/$deployment -o yaml")
+  printf "$deployment_script" > dep.yaml
+  debug "parsing yaml"
+  local yaml=$(parse_yaml dep.yaml "dep_")
+#  debug "created vars:\n\n$yaml"
+  eval $yaml
+
   if (($? > 0)); then
     fail "Something went wrong, aborting..."
   fi
   debug "deployment_script: " && printf "$deployment_script" && echo ""
 
   local current_tag=$(printf "$deployment_script" | grep 'image: ' | cut -d : -f 4)
-  debug "current_tag: " && echo "$current_tag"
+  debug "current_tag: $current_tag"
 
   if [[ $current_tag = $tag ]]; then
     fail "Already running: $tag"
@@ -65,17 +93,28 @@ main() {
   local deployment_script_update=$(printf "$deployment_script" | sed "s,\(image: .*\):.*$,\1:$tag,")
   debug "deployment_script_update: " && printf "$deployment_script_update" && echo ""
 
-  local replicas=$(printf "$deployment_script" | grep -e '^  replicas: ' | head -n 1 | awk '{print $2}')
+  local replicas=$dep_status_replicas
   debug "replicas: $replicas"
 
-  local minReadySeconds=$(printf "$deployment_script" | grep 'minReadySeconds: ' | awk '{print $2}')
+  local minReadySeconds=$dep_spec_minReadySeconds
   debug "minReadySeconds: $minReadySeconds"
 
-  local strategy=$(printf "$deployment_script" | grep 'strategy: ' | awk '{print $2}')
+  local readinessTimeout=$dep_spec_template_spec__readinessProbe_periodSeconds
+  debug "readinessTimeout: $readinessTimeout"
+
+  local noRollbackMechanism
+  [ -z "$minReadySeconds" && -z "$readinessTimeout" ] && noRollbackMechanism=true
+  debug "noRollbackMechanism: $noRollbackMechanism"
+  exit
+
+  local timeout=$minReadySeconds
+  [ -z "$timeout" ] && timeout=$readinessTimeout
+  [ -z "$timeout" ] && timeout=0
+
+  local strategy=$dep_spec_strategy_type
   [ -z "$strategy" ] && strategy="RollingUpdate"
   debug "strategy: $strategy"
 
-  [ -z "$minReadySeconds" ] && minReadySeconds=0
   local cmd_update="printf \"\$deployment_script_update\" | $kubectl replace -f -"
   local cmd_rollback="$kubectl rollout undo deployment/$deployment"
   debug "cmd_update: " && printf "$cmd_update" && echo ""
@@ -84,11 +123,13 @@ main() {
   eval "$cmd_update"
 
   local deployment_script_now
-  local timeout=$(($minReadySeconds + 10))
   if [ "$strategy" != "Recreate" ]; then
     echo "multiplying timeout with # of replicas"
     timeout=$(($timeout * $replicas))
   fi
+  # just to be sure we add 10 secs
+  timeout=$(($timeout + 10))
+  echo "timeout: $timeout"
 
   local retries=3
   local unavailable
@@ -104,8 +145,11 @@ main() {
   done
 
   if [ "$unavailable" != "0" ]; then
-    info "Some pods found to be unavailable, rolling back..."
-    eval $cmd_rollback
+    # only roll back when we're stuck and the config did not specify any timeout after which to rollback
+    if [ -e "$noRollbackMechanism" ]; then
+      info "Some pods found to be unavailable, rolling back..."
+      eval $cmd_rollback
+    fi
     fail "Deployment update failed"
   fi
 
