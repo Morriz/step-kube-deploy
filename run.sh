@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 debug() { if [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ]; then echo "$*"; return 0; else return 1; fi }
-info() { echo "$*"; }
-fail() { echo "$*"; exit 1; }
+#info() { echo "$*"; }
+#fail() { echo "$*"; exit 1; }
 
 parse_yaml() {
     local prefix=$2
@@ -105,7 +105,6 @@ main() {
   local noRollbackMechanism
   [[ -z "$minReadySeconds" && -z "$readinessTimeout" ]] && noRollbackMechanism=true
   debug "noRollbackMechanism: $noRollbackMechanism"
-  exit
 
   local timeout=$minReadySeconds
   [ -z "$timeout" ] && timeout=$readinessTimeout
@@ -137,11 +136,11 @@ main() {
   while ([ "$unavailable" !=  "0" ] && [ "$retries" !=  "0" ]); do
     retries=$((retries - 1))
     eval "sleep $timeout"
+    debug "retries: $retries"
     info "Checking status of deployment..."
     deployment_script_now=$(eval "$kubectl get deployment/$deployment -o yaml")
     unavailable=$(eval "$kubectl describe deployments $deployment" | grep 'unavailable' | head -n 1 | awk '{print $11}')
     debug "unavailable: $unavailable"
-    debug "retries: $retries"
   done
 
   if [ "$unavailable" != "0" ]; then

@@ -1,5 +1,5 @@
 name: kube-deploy
-version: 0.1.12
+version: 0.2.1
 description: Step to replace image tags in kubernetes deployments (making it do a rolling update), monitor successful application, and do a rollback if necessary.
 keywords:
   - kubernetes
