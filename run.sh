@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 debug() { if [ "$WERCKER_KUBE_DEPLOY_DEBUG" = "true" ]; then echo "$*"; return 0; else return 1; fi }
-#info() { echo "$*"; }
-#fail() { echo "$*"; exit 1; }
+info() { echo "$*"; }
+fail() { echo "$*"; exit 1; }
 
 parse_yaml() {
     local prefix=$2
@@ -103,7 +103,7 @@ main() {
   debug "readinessTimeout: $readinessTimeout"
 
   local noRollbackMechanism
-  [ -z "$minReadySeconds" && -z "$readinessTimeout" ] && noRollbackMechanism=true
+  [[ -z "$minReadySeconds" && -z "$readinessTimeout" ]] && noRollbackMechanism=true
   debug "noRollbackMechanism: $noRollbackMechanism"
   exit
 
