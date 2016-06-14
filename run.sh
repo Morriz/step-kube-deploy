@@ -86,9 +86,9 @@ main() {
   local current_tag=$(printf "$deployment_script" | grep 'image: ' | cut -d : -f 4)
   debug "current_tag: $current_tag"
 
-  if [[ $current_tag = $tag ]]; then
-    fail "Already running: $tag"
-  fi
+#  if [[ $current_tag = $tag ]]; then
+#    fail "Already running: $tag"
+#  fi
 
   local deployment_script_update=$(printf "$deployment_script" | sed "s,\(image: .*\):.*$,\1:$tag,")
   debug "deployment_script_update: " && printf "$deployment_script_update" && echo ""
@@ -99,15 +99,15 @@ main() {
   local minReadySeconds=$dep_spec_minReadySeconds
   debug "minReadySeconds: $minReadySeconds"
 
-  local readinessTimeout=$dep_spec_template_spec__readinessProbe_periodSeconds
+  local initialDelaySeconds=$dep_spec_template_spec__readinessProbe_initialDelaySeconds
   debug "readinessTimeout: $readinessTimeout"
 
-  local noRollbackMechanism
-  [[ -z "$minReadySeconds" && -z "$readinessTimeout" ]] && noRollbackMechanism=true
-  debug "noRollbackMechanism: $noRollbackMechanism"
+  local no_rollback_mechanism
+  [[ -z "$minReadySeconds" && -z "$initialDelaySeconds" ]] && no_rollback_mechanism=true
+  debug "no_rollback_mechanism: $no_rollback_mechanism"
 
   local timeout=$minReadySeconds
-  [ -z "$timeout" ] && timeout=$readinessTimeout
+  [ -z "$timeout" ] && timeout=$initialDelaySeconds
   [ -z "$timeout" ] && timeout=0
 
   local strategy=$dep_spec_strategy_type
@@ -145,7 +145,7 @@ main() {
 
   if [ "$unavailable" != "0" ]; then
     # only roll back when we're stuck and the config did not specify any timeout after which to rollback
-    if [ -e "$noRollbackMechanism" ]; then
+    if [ -e "$no_rollback_mechanism" ]; then
       info "Some pods found to be unavailable, rolling back..."
       eval $cmd_rollback
     fi
