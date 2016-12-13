@@ -5,7 +5,7 @@ build:
             name: config
             code: |
                 export KUBERNETES_VERSION="1.4.7"
-                export KUBERNETES_SHA1="d193f76e70322010b3e86ac61c7a893175f9e62d37bece87cfd14ea068c8d187"
+                export KUBERNETES_SHA256="d193f76e70322010b3e86ac61c7a893175f9e62d37bece87cfd14ea068c8d187"
                 echo "Installing version $KUBERNETES_VERSION of kubernetes"
 
         - script:
@@ -16,7 +16,7 @@ build:
         - script:
             name: validate kubernetes archive
             code: |
-                cat /tmp/kubernetes.tar.gz | sha1sum | grep -q "$KUBERNETES_SHA1"
+                cat /tmp/kubernetes.tar.gz | sha256 | grep -q "$KUBERNETES_SHA256"
 
         - script:
             name: extract kubernetes archive
