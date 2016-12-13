@@ -4,9 +4,8 @@ build:
         - script:
             name: config
             code: |
-                export KUBERNETES_VERSION="1.2.0"
-                export KUBERNETES_MD5="c0ce9e6150e9d7a19455db82f3318b4c"
-                export KUBERNETES_SHA1="52dd998e1191f464f581a9b87017d70ce0b058d9"
+                export KUBERNETES_VERSION="1.4.7"
+                export KUBERNETES_SHA1="d193f76e70322010b3e86ac61c7a893175f9e62d37bece87cfd14ea068c8d187"
                 echo "Installing version $KUBERNETES_VERSION of kubernetes"
 
         - script:
@@ -18,7 +17,6 @@ build:
             name: validate kubernetes archive
             code: |
                 cat /tmp/kubernetes.tar.gz | sha1sum | grep -q "$KUBERNETES_SHA1"
-                cat /tmp/kubernetes.tar.gz | md5sum | grep -q "$KUBERNETES_MD5"
 
         - script:
             name: extract kubernetes archive
